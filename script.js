@@ -33,27 +33,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const successMsg = document.getElementById('formSuccess');
     const userTypeRadios = document.querySelectorAll('input[name="userType"]');
     const teenSurvey = document.getElementById('teenSurvey');
-    const surveyInputs = teenSurvey ? teenSurvey.querySelectorAll('input') : [];
+    const teenInputs = teenSurvey ? teenSurvey.querySelectorAll('input') : [];
 
-    // Handle conditional revealing of teen survey
-    if (userTypeRadios.length && teenSurvey) {
+    const parentSurvey = document.getElementById('parentSurvey');
+    const parentInputs = parentSurvey ? parentSurvey.querySelectorAll('input') : [];
+
+    // Handle conditional revealing of teen/parent surveys
+    if (userTypeRadios.length) {
         userTypeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.value === 'teen') {
-                    teenSurvey.classList.remove('hidden-survey');
-                    teenSurvey.style.position = 'relative';
-                    teenSurvey.style.visibility = 'visible';
-                    // Make inputs required when active
-                    surveyInputs.forEach(input => input.setAttribute('required', 'true'));
+                    // Show teen, hide parent
+                    if (teenSurvey) {
+                        teenSurvey.classList.remove('hidden-survey');
+                        teenSurvey.style.position = 'relative';
+                        teenSurvey.style.visibility = 'visible';
+                        teenInputs.forEach(input => input.setAttribute('required', 'true'));
+                    }
+                    if (parentSurvey) {
+                        parentSurvey.classList.add('hidden-survey');
+                        parentSurvey.style.position = 'absolute';
+                        parentSurvey.style.visibility = 'hidden';
+                        parentInputs.forEach(input => input.removeAttribute('required'));
+                    }
                 } else {
-                    teenSurvey.classList.add('hidden-survey');
-                    teenSurvey.style.position = 'absolute';
-                    teenSurvey.style.visibility = 'hidden';
-                    // Remove required when hidden
-                    surveyInputs.forEach(input => input.removeAttribute('required'));
+                    // Show parent, hide teen
+                    if (parentSurvey) {
+                        parentSurvey.classList.remove('hidden-survey');
+                        parentSurvey.style.position = 'relative';
+                        parentSurvey.style.visibility = 'visible';
+                        parentInputs.forEach(input => input.setAttribute('required', 'true'));
+                    }
+                    if (teenSurvey) {
+                        teenSurvey.classList.add('hidden-survey');
+                        teenSurvey.style.position = 'absolute';
+                        teenSurvey.style.visibility = 'hidden';
+                        teenInputs.forEach(input => input.removeAttribute('required'));
+                    }
                 }
             });
         });
+
+        // Trigger manually on load to set initial state correctly
+        const checkedRadio = document.querySelector('input[name="userType"]:checked');
+        if (checkedRadio) {
+            checkedRadio.dispatchEvent(new Event('change'));
+        }
     }
 
     // Form Submission to Google Sheets
@@ -79,6 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const formData = new FormData(form);
+
+            // Remove the hidden survey questions from the payload before sending
+            const userType = formData.get('userType');
+            if (userType === 'parent') {
+                formData.delete('q1');
+                formData.delete('q2');
+                formData.delete('q3');
+            } else if (userType === 'teen') {
+                formData.delete('ParentGoal');
+            }
 
             fetch(scriptURL, { method: 'POST', body: formData })
                 .then(response => {
